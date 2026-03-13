@@ -4,8 +4,8 @@ import json
 import random
 import os
 from dotenv import load_dotenv
-load_dotenv()
-token = os.getenv("bot.env")
+load_dotenv("bot.env")
+token = os.getenv("BOT_TOKEN")
 
 hunter = 485957450009149451
 def get_meme():
@@ -150,3 +150,4 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 client = MyClient(intents=intents)
+client.run(token)

@@ -5,7 +5,7 @@ import random
 import os
 from dotenv import load_dotenv
 load_dotenv()
-token = os.getenv("BOT_TOKEN")
+token = os.getenv("bot.env")
 
 hunter = 485957450009149451
 def get_meme():

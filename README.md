@@ -3,7 +3,7 @@ Discord bot that has a few commands that grabs memes and videos from a specified
 ---------------------------------------------------------------------------------------
 ## Commands (Up to date as of 3/13/2026): 
 $meme - Gets a random meme from meme-API
-whoami - Mentions user that types this command. 
+\nwhoami - Mentions user that types this command. 
 roll - Rolls a number between 1 and 100. 
 random - Gets a random meme from my memes folder. (Works when running on Raspberry Pi and Windows)
 randompepe - Gets a random Pepe the Frog from my folder of Pepe memes. (Works when running on Raspberry Pi and Windows)

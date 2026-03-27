@@ -81,7 +81,8 @@ class MyClient(discord.Client):
             status = "Running on Raspberry Pi"
         else:
             status = "Running on Windows"
-        
+        target_user = await self.fetch_user(485957450009149451)
+        await target_user.send("I'm online master 😍")
         await self.change_presence(activity=discord.Game(name=status))
 
     async def on_message(self, message):

@@ -91,12 +91,16 @@ class MyClient(discord.Client):
 
         # for specific person sending messages in channel 
         if message.author.id == 673341883577270313:
-            gif_url = "https://cdn.discordapp.com/attachments/716426554380386354/1452761928366817311/bouncingpoof.gif?ex=69d1767a&is=69d024fa&hm=fc147bf4137cadbbd96a1588bd99a3b8e8caf6421c9e9d09bde00ab4bd4538c0&"
-            embed = discord.Embed()
-            embed.set_image(url=gif_url)
-            await message.channel.send(random.choice(['shut up poof', 'you like femboys, right?', 'are u sped?' ]),
-            embed=embed
-            )
+            gif_embed = discord.Embed()
+            gif_embed.set_image(url="https://cdn.discordapp.com/attachments/716426554380386354/1452761928366817311/bouncingpoof.gif?ex=69d1767a&is=69d024fa&hm=fc147bf4137cadbbd96a1588bd99a3b8e8caf6421c9e9d09bde00ab4bd4538c0&")
+            
+            choices = ['shut up poof', 'you like femboys, right?', 'are u sped?', gif_embed]
+            choice = random.choice(choices)
+
+            if isinstance(choice, discord.Embed):
+                await message.channel.send(embed=choice)
+            else:
+                await message.channel.send(choice)
             return
 
         content = message.content.strip().lower()

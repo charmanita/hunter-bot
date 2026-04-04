@@ -146,6 +146,8 @@ class MyClient(discord.Client):
                 await message.channel.send(file=discord.File(randompepe))
             else:
                 await message.channel.send("No images found in the folder.")
+        if content == 'dog':
+            await message.channel.send('dog')
 
 intents = discord.Intents.default()
 intents.message_content = True

@@ -91,7 +91,7 @@ class MyClient(discord.Client):
 
         # Moved BEFORE the user-specific early return so it always fires
         if message.author.id == 673341883577270313:
-            await message.channel.send(random.choice(['Option 1', 'Option 2', 'Option 3']))
+            await message.channel.send(random.choice(['shut up poof', 'you like femboys, right?', 'are u sped?']))
             return
 
         content = message.content.strip().lower()

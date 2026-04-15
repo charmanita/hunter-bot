@@ -72,6 +72,14 @@ def get_random_clip(*folder_paths, max_mb=25):
     if not videos:
         return None
     return random.choice(videos)
+def get_specific_image(filename, *folder_paths):
+    for folder_path in folder_paths: 
+        if not os.path.exists(folder_path):
+            continue
+        full_path = os.path.join(folder_path, filename)
+        if os.path.exists(full_path):
+            return full_path
+    return None
 
 class MyClient(discord.Client):
     async def on_ready(self):

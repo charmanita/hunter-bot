@@ -152,6 +152,13 @@ class MyClient(discord.Client):
                 await message.channel.send(file=discord.File(randompepe))
             else:
                 await message.channel.send("No images found in the folder.")
+        if content.startswith('image '):
+            filename = content[6:].strip()  # everything after "image "
+            image_path = get_specific_image(filename, "D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes")
+            if image_path:
+                await message.channel.send(file=discord.File(image_path))
+            else:
+                await message.channel.send("Image not found.")
 
 intents = discord.Intents.default()
 intents.message_content = True

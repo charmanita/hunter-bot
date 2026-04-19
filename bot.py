@@ -116,7 +116,7 @@ class MyClient(discord.Client):
         if content == 'roll':
             await message.channel.send(str(random.randint(1, 100)))
 
-        if content == 'random':
+        if content.lower() == 'random':
             image_path = get_random_image("D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes")
             if image_path:
                 await message.channel.send(file=discord.File(image_path))

@@ -97,17 +97,6 @@ class MyClient(discord.Client):
         if message.author == self.user:
             return
 
-        # for specific person sending messages in channel 
-        if message.author.id == 673341883577270313:
-            choices = ['shut up poof', 'you like femboys, right?', 'are u sped?', 'gif']
-            choice = random.choice(choices)
-
-            if choice == 'gif':
-                await message.channel.send(file=discord.File('/home/hdr/Desktop/memes/bouncingpoof.gif'))
-            else:
-                await message.channel.send(choice)
-            return
-
         content = message.content.strip().lower()
 
         if content == 'help':

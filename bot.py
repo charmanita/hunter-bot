@@ -165,7 +165,8 @@ class MyClient(discord.Client):
                 await message.channel.send(f"You have {len(images)} images and {len(videos)} videos.")
             else:
                 await message.channel.send("Folder not found.")
-            
+        if content == 'hi'
+            await message.channel.send("Hi.")
 
 intents = discord.Intents.default()
 intents.message_content = True

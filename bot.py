@@ -156,6 +156,16 @@ class MyClient(discord.Client):
                 await message.channel.send(file=discord.File(image_path))
             else:
                 await message.channel.send("Image not found.")
+        if content == 'ls' and message.author.id == hunter:
+            memes_folder = next((p for p in ["D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes"] if os.path.exists(p)), None)
+            if memes_folder:
+                files = os.listdir(memes_folder)
+                images = [f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))]
+                videos = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm'))]
+                await message.channel.send("You have {len(images)} images and {len(videos)} pictures.")
+            else:
+                await message.channel.send("Folder not found.")
+            
 
 intents = discord.Intents.default()
 intents.message_content = True

@@ -162,7 +162,7 @@ class MyClient(discord.Client):
                 files = os.listdir(memes_folder)
                 images = [f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))]
                 videos = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm'))]
-                await message.channel.send("You have {len(images)} images and {len(videos)} pictures.")
+                await message.channel.send(f"You have {len(images)} images and {len(videos)} pictures.")
             else:
                 await message.channel.send("Folder not found.")
             

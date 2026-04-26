@@ -8,6 +8,45 @@ load_dotenv("bot.env")
 token = os.getenv("BOT_TOKEN")
 
 hunter = 485957450009149451
+
+ITEMS_PER_PAGE = 25
+
+class FileIndexView(discord.ui.View):
+    def __init__(self, images, videos):
+        super().__init__(timeout=60)
+        self.images = images
+        self.videos = videos
+        self.page = 0
+        self.all_files = (
+            [f"🖼️ {f}" for f in images] +
+            [f"🎬 {f}" for f in videos]
+        )
+        self.total_pages = max(1, (len(self.all_files) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
+
+    def build_embed(self):
+        start = self.page * ITEMS_PER_PAGE
+        end = start + ITEMS_PER_PAGE
+        chunk = self.all_files[start:end]
+
+        embed = discord.Embed(
+            title="📁 Memes Folder Index",
+            description="\n".join(chunk) if chunk else "*Empty folder*",
+            color=discord.Color.blurple()
+        )
+        embed.set_footer(text=f"Page {self.page + 1}/{self.total_pages} | {len(self.images)} images, {len(self.videos)} videos")
+        return embed
+
+    @discord.ui.button(label="◀", style=discord.ButtonStyle.secondary)
+    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.page > 0:
+            self.page -= 1
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.button(label="▶", style=discord.ButtonStyle.secondary)
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.page < self.total_pages - 1:
+            self.page += 1
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
 def get_meme():
     response = requests.get('https://meme-api.com/gimme')
     json_data = json.loads(response.text)
@@ -162,7 +201,8 @@ class MyClient(discord.Client):
                 files = os.listdir(memes_folder)
                 images = [f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))]
                 videos = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm'))]
-                await message.channel.send(f"You have {len(images)} images and {len(videos)} videos.")
+                view = FileIndexView(images, videos)
+                await message.channel.send(embed=view.build_embed(), view=view)
             else:
                 await message.channel.send("Folder not found.")
 

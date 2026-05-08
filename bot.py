@@ -138,7 +138,7 @@ class MyClient(discord.Client):
 
         content = message.content.strip().lower()
 
-        if content == 'help':
+        if content == 'h!help':
             await message.channel.send(
                 "Commands:\n$meme - Get a random meme\nwhoami - See if I know you...\nroll - Roll a number between 1 and 100\nrandom - Get a random meme from <@485957450009149451>'s computer!\nrandompepe - Get a random Pepe the Frog meme!\nrandvid - Get a random meme video from <@485957450009149451>'s computer!\nrandclip - Get a random clip from <@485957450009149451>'s computer!\n!shutdown - Shutdown the bot (<@485957450009149451> only!)"
             )

@@ -4,12 +4,17 @@ import json
 import random
 import os
 from dotenv import load_dotenv
+from datetime import datetime, timezone
+
 load_dotenv("bot.env")
 token = os.getenv("BOT_TOKEN")
 
 hunter = 485957450009149451
 
 ITEMS_PER_PAGE = 25
+
+invite_cache = {}
+
 
 class FileIndexView(discord.ui.View):
     def __init__(self, images, videos):
@@ -47,10 +52,13 @@ class FileIndexView(discord.ui.View):
         if self.page < self.total_pages - 1:
             self.page += 1
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+
 def get_meme():
     response = requests.get('https://meme-api.com/gimme')
     json_data = json.loads(response.text)
     return json_data['url']
+
 
 def get_random_image(*folder_paths, max_mb=25):
     images = []
@@ -67,6 +75,7 @@ def get_random_image(*folder_paths, max_mb=25):
         return None
     return random.choice(images)
 
+
 def get_random_pepe(*folder_paths, max_mb=25):
     images = []
     for folder_path in folder_paths:
@@ -81,6 +90,7 @@ def get_random_pepe(*folder_paths, max_mb=25):
     if not images:
         return None
     return random.choice(images)
+
 
 def get_random_video(*folder_paths, max_mb=25):
     videos = []
@@ -97,6 +107,7 @@ def get_random_video(*folder_paths, max_mb=25):
         return None
     return random.choice(videos)
 
+
 def get_random_clip(*folder_paths, max_mb=25):
     videos = []
     for folder_path in folder_paths:
@@ -111,8 +122,10 @@ def get_random_clip(*folder_paths, max_mb=25):
     if not videos:
         return None
     return random.choice(videos)
+
+
 def get_specific_image(filename, *folder_paths):
-    for folder_path in folder_paths: 
+    for folder_path in folder_paths:
         if not os.path.exists(folder_path):
             continue
         full_path = os.path.join(folder_path, filename)
@@ -120,17 +133,89 @@ def get_specific_image(filename, *folder_paths):
             return full_path
     return None
 
+
+async def check_new_account(member: discord.Member) -> dict:
+    now = datetime.now(timezone.utc)
+    account_age_days = (now - member.created_at).days
+    is_default_avatar = member.avatar is None
+    return {
+        "is_default_avatar": is_default_avatar,
+        "account_age_days": account_age_days,
+        "created_at": member.created_at,
+        "joined_at": member.joined_at,
+    }
+
+
 class MyClient(discord.Client):
     async def on_ready(self):
         print('Logged on as {0}!'.format(self.user))
+
+        for guild in self.guilds:
+            try:
+                invite_cache[guild.id] = {inv.code: inv.uses for inv in await guild.invites()}
+            except discord.Forbidden:
+                print(f"[READY] Missing Manage Guild permission in {guild.name}, invite tracking disabled")
 
         if os.path.exists("/home/hdr/Desktop/memes"):
             status = "Running on Raspberry Pi"
         else:
             status = "Running on Windows"
+
         target_user = await self.fetch_user(485957450009149451)
         await target_user.send("I'm online master 😍")
         await self.change_presence(activity=discord.Game(name=status))
+
+    async def on_invite_create(self, invite: discord.Invite):
+        invite_cache.setdefault(invite.guild.id, {})[invite.code] = invite.uses
+
+    async def on_invite_delete(self, invite: discord.Invite):
+        invite_cache.get(invite.guild.id, {}).pop(invite.code, None)
+
+    async def on_member_join(self, member: discord.Member):
+        result = await check_new_account(member)
+        print(f"[JOIN] {member.name} | default avatar: {result['is_default_avatar']} | age: {result['account_age_days']} days")
+
+        used_invite = None
+        try:
+            current_invites = await member.guild.invites()
+            for invite in current_invites:
+                cached_uses = invite_cache.get(member.guild.id, {}).get(invite.code, 0)
+                if invite.uses > cached_uses:
+                    used_invite = invite
+                    invite_cache[member.guild.id][invite.code] = invite.uses
+                    break
+        except discord.Forbidden:
+            print("[JOIN] Missing Manage Guild permission, can't fetch invites")
+
+        flags = []
+        if result["is_default_avatar"]:
+            flags.append("Default avatar detected")
+        if result["account_age_days"] < 7:
+            flags.append(f"Account is only {result['account_age_days']} day(s) old")
+
+        invite_info = (
+            f"Invite `{used_invite.code}` by {used_invite.inviter.mention} ({used_invite.uses} total uses)"
+            if used_invite else "Could not determine invite"
+        )
+
+        if not flags: 
+            return
+
+        log_channel = discord.utils.get(member.guild.text_channels, name="moderator-logs")
+        print(f"[JOIN] log_channel found: {log_channel}")
+
+        if log_channel:
+            try:
+                await log_channel.send(
+                    f"**Suspicious join:** {member.mention} (`{member.name}`)\n"
+                    f"Invite: {invite_info}\n"
+                    f"Account created: <t:{int(result['created_at'].timestamp())}:R>\n"
+                    + ("\n".join(flags))
+                    + f"\n <@{673341883577270313}> <@{485957450009149451}>"
+                )
+                print("[JOIN] Message sent successfully")
+            except discord.Forbidden:
+                print("[JOIN] Missing permission to send in moderator-logs")
 
     async def on_message(self, message):
         if message.author == self.user:
@@ -140,7 +225,8 @@ class MyClient(discord.Client):
 
         if content == 'h!help':
             await message.channel.send(
-                "Commands:\n$meme - Get a random meme\nwhoami - See if I know you...\nroll - Roll a number between 1 and 100\nrandom - Get a random meme from <@485957450009149451>'s computer!\nrandompepe - Get a random Pepe the Frog meme!\nrandvid - Get a random meme video from <@485957450009149451>'s computer!\nrandclip - Get a random clip from <@485957450009149451>'s computer!\n!shutdown - Shutdown the bot (<@485957450009149451> only!)\nls - lists all images indexed with the bot (<@485957450009149451> only.)\nimage - start your message with image and type in any image in the list."            )
+                "Commands:\n$meme - Get a random meme\nwhoami - See if I know you...\nroll - Roll a number between 1 and 100\nrandom - Get a random meme from <@485957450009149451>'s computer!\nrandompepe - Get a random Pepe the Frog meme!\nrandvid - Get a random meme video from <@485957450009149451>'s computer!\nrandclip - Get a random clip from <@485957450009149451>'s computer!\n!shutdown - Shutdown the bot (<@485957450009149451> only!)\nls - lists all images indexed with the bot (<@485957450009149451> only.)\nimage - start your message with image and type in any image in the list."
+            )
 
         if content == '$meme':
             await message.channel.send(get_meme())
@@ -164,14 +250,16 @@ class MyClient(discord.Client):
         if content == '!shutdown' and message.author.id == hunter:
             await message.channel.send('Shutting down...')
             await self.close()
-        elif content == '!shutdown' and message.author.id != hunter: 
+        elif content == '!shutdown' and message.author.id != hunter:
             await message.channel.send("You are not sigma owner admin 💯🔥")
+
         if content == 'randvid':
             video_path = get_random_video("D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes")
             if video_path:
                 await message.channel.send(file=discord.File(video_path))
             else:
                 await message.channel.send("No videos found in this folder.")
+
         if content == 'randclip':
             video = get_random_clip("D:/Hrobe/Videos", "C:/Users/Hrobe/Videos")
             if video:
@@ -181,19 +269,22 @@ class MyClient(discord.Client):
                     await message.channel.send(f"Failed to send clip: {e}")
             else:
                 await message.channel.send("No videos found.")
+
         if content == 'randompepe':
             randompepe = get_random_pepe("D:/Hrobe/Downloads/Memes/pepe", "/home/hdr/Desktop/memes/pepe")
             if randompepe:
                 await message.channel.send(file=discord.File(randompepe))
             else:
                 await message.channel.send("No images found in the folder.")
+
         if content.startswith('image '):
-            filename = content[6:].strip()  # everything after "image "
+            filename = content[6:].strip()
             image_path = get_specific_image(filename, "D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes")
             if image_path:
                 await message.channel.send(file=discord.File(image_path))
             else:
                 await message.channel.send("Image not found.")
+
         if content == 'ls' and message.author.id == hunter:
             memes_folder = next((p for p in ["D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes"] if os.path.exists(p)), None)
             if memes_folder:
@@ -205,8 +296,11 @@ class MyClient(discord.Client):
             else:
                 await message.channel.send("Folder not found.")
 
+
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
+intents.guilds = True
 
 client = MyClient(intents=intents)
 client.run(token)

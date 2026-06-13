@@ -13,8 +13,6 @@ hunter = 485957450009149451
 
 ITEMS_PER_PAGE = 25
 
-invite_cache = {}
-
 
 class FileIndexView(discord.ui.View):
     def __init__(self, images, videos):
@@ -134,18 +132,6 @@ def get_specific_image(filename, *folder_paths):
     return None
 
 
-async def check_new_account(member: discord.Member) -> dict:
-    now = datetime.now(timezone.utc)
-    account_age_days = (now - member.created_at).days
-    is_default_avatar = member.avatar is None
-    return {
-        "is_default_avatar": is_default_avatar,
-        "account_age_days": account_age_days,
-        "created_at": member.created_at,
-        "joined_at": member.joined_at,
-    }
-
-
 class MyClient(discord.Client):
     async def on_ready(self):
         print('Logged on as {0}!'.format(self.user))
@@ -164,59 +150,6 @@ class MyClient(discord.Client):
         target_user = await self.fetch_user(485957450009149451)
         await target_user.send("I'm online master 😍")
         await self.change_presence(activity=discord.Game(name=status))
-
-    async def on_invite_create(self, invite: discord.Invite):
-        invite_cache.setdefault(invite.guild.id, {})[invite.code] = invite.uses
-
-    async def on_invite_delete(self, invite: discord.Invite):
-        invite_cache.get(invite.guild.id, {}).pop(invite.code, None)
-
-    async def on_member_join(self, member: discord.Member):
-        result = await check_new_account(member)
-        print(f"[JOIN] {member.name} | default avatar: {result['is_default_avatar']} | age: {result['account_age_days']} days")
-
-        used_invite = None
-        try:
-            current_invites = await member.guild.invites()
-            for invite in current_invites:
-                cached_uses = invite_cache.get(member.guild.id, {}).get(invite.code, 0)
-                if invite.uses > cached_uses:
-                    used_invite = invite
-                    invite_cache[member.guild.id][invite.code] = invite.uses
-                    break
-        except discord.Forbidden:
-            print("[JOIN] Missing Manage Guild permission, can't fetch invites")
-
-        flags = []
-        if result["is_default_avatar"]:
-            flags.append("Default avatar detected")
-        if result["account_age_days"] < 7:
-            flags.append(f"Account is only {result['account_age_days']} day(s) old")
-
-        invite_info = (
-            f"Invite `{used_invite.code}` by {used_invite.inviter.mention} ({used_invite.uses} total uses)"
-            if used_invite else "Could not determine invite"
-        )
-
-        if not flags: 
-            return
-
-        log_channel = discord.utils.get(member.guild.text_channels, name="moderator-logs")
-        print(f"[JOIN] log_channel found: {log_channel}")
-
-        if log_channel:
-            try:
-                await log_channel.send(
-                    f"**Suspicious join:** {member.mention} (`{member.name}`)\n"
-                    f"Invite: {invite_info}\n"
-                    f"Account created: <t:{int(result['created_at'].timestamp())}:R>\n"
-                    + ("\n".join(flags))
-                    + f"\n <@{673341883577270313}> <@{485957450009149451}>"
-                )
-                print("[JOIN] Message sent successfully")
-            except discord.Forbidden:
-                print("[JOIN] Missing permission to send in moderator-logs")
-
     async def on_message(self, message):
         if message.author == self.user:
             return

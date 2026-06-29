@@ -4,14 +4,16 @@ import json
 import random
 import os
 from dotenv import load_dotenv
-from datetime import datetime, timezone
 
 load_dotenv("bot.env")
 token = os.getenv("BOT_TOKEN")
 
 hunter = 485957450009149451
-
+CHANNEL_ID = 1520923759987523684  # Rules channel
+ROLE_ID = 1520925875917295696     # verified role
+EMOJI = "✅"
 ITEMS_PER_PAGE = 25
+MSG_ID_FILE = "rules_msg_id.txt"
 
 
 class FileIndexView(discord.ui.View):
@@ -30,7 +32,6 @@ class FileIndexView(discord.ui.View):
         start = self.page * ITEMS_PER_PAGE
         end = start + ITEMS_PER_PAGE
         chunk = self.all_files[start:end]
-
         embed = discord.Embed(
             title="📁 Memes Folder Index",
             description="\n".join(chunk) if chunk else "*Empty folder*",
@@ -133,23 +134,76 @@ def get_specific_image(filename, *folder_paths):
 
 
 class MyClient(discord.Client):
+    def build_rules_embed(self):
+        embed = discord.Embed(
+            title="Welcome to charmanita.dev's server! Please read the rules and click the checkmark to gain access to the server!",
+            color=0x00ff95
+        )
+        embed.set_image(url="attachment://charmanitadevembed.jpg")
+        embed.add_field(name="1. Be respectful", value="Treat everybody with respect. Do not be disrespectful in any way, shape, or form just because you disagree on things or you think it's in a joking manner.", inline=False)
+        embed.add_field(name="2. No Spamming", value="Do not spam in the server, keep it nice and tidy. Do not post links without asking the owner first.", inline=False)
+        embed.add_field(name="3. Follow Discord TOS", value="All users need to strictly follow Discord [Terms of Service](https://www.discord.com/terms).", inline=False)
+        embed.set_footer(text=f"React with {EMOJI} below to accept the rules and enjoy the server!")
+        return embed
+
     async def on_ready(self):
         print('Logged on as {0}!'.format(self.user))
-
-        for guild in self.guilds:
-            try:
-                invite_cache[guild.id] = {inv.code: inv.uses for inv in await guild.invites()}
-            except discord.Forbidden:
-                print(f"[READY] Missing Manage Guild permission in {guild.name}, invite tracking disabled")
 
         if os.path.exists("/home/hdr/Desktop/memes"):
             status = "Running on Raspberry Pi"
         else:
             status = "Running on Windows"
 
-        target_user = await self.fetch_user(485957450009149451)
+        target_user = await self.fetch_user(hunter)
         await target_user.send("I'm online master 😍")
         await self.change_presence(activity=discord.Game(name=status))
+
+        channel = self.get_channel(CHANNEL_ID)
+        if not channel:
+            print("Channel not found...")
+            return
+
+        embed = self.build_rules_embed()
+
+        if os.path.exists(MSG_ID_FILE):
+            with open(MSG_ID_FILE) as f:
+                msg_id = int(f.read().strip())
+            try:
+                existing = await channel.fetch_message(msg_id)
+                await existing.edit(embed=embed)
+                print("Rules embed updated.")
+            except discord.NotFound:
+                print("Previous message not found, resending...")
+                my_file = discord.File("/home/hdr/Desktop/img/charmanitadevembed.jpg", filename="charmanitadevembed.jpg")
+                message = await channel.send(file=my_file, embed=embed)
+                await message.add_reaction(EMOJI)
+                with open(MSG_ID_FILE, "w") as f:
+                    f.write(str(message.id))
+        else:
+            my_file = discord.File("/home/hdr/Desktop/img/charmanitadevembed.jpg", filename="charmanitadevembed.jpg")
+            message = await channel.send(file=my_file, embed=embed)
+            await message.add_reaction(EMOJI)
+            with open(MSG_ID_FILE, "w") as f:
+                f.write(str(message.id))
+            print("Rules embed sent.")
+
+    async def on_raw_reaction_add(self, payload):
+        if payload.user_id == self.user.id:
+            return
+        guild = self.get_guild(payload.guild_id)
+        if guild is None:
+            return
+        role = guild.get_role(ROLE_ID)
+        member = guild.get_member(payload.user_id)
+        if role and member:
+            try:
+                await member.add_roles(role)
+                print(f"Successfully gave {role.name} role to {member.name}.")
+            except discord.Forbidden:
+                print("Error: Missing 'Manage Roles' permissions, or role is lower in hierarchy.")
+            except discord.HTTPException:
+                print("Failed to add role due to a network or Discord API error.")
+
     async def on_message(self, message):
         if message.author == self.user:
             return
@@ -160,6 +214,9 @@ class MyClient(discord.Client):
             await message.channel.send(
                 "Commands:\n$meme - Get a random meme\nwhoami - See if I know you...\nroll - Roll a number between 1 and 100\nrandom - Get a random meme from <@485957450009149451>'s computer!\nrandompepe - Get a random Pepe the Frog meme!\nrandvid - Get a random meme video from <@485957450009149451>'s computer!\nrandclip - Get a random clip from <@485957450009149451>'s computer!\n!shutdown - Shutdown the bot (<@485957450009149451> only!)\nls - lists all images indexed with the bot (<@485957450009149451> only.)\nimage - start your message with image and type in any image in the list."
             )
+
+        if content == 'meow':
+            await message.channel.send("woof", file=discord.File("/home/hdr/Desktop/memes/puphunter.png"))
 
         if content == '$meme':
             await message.channel.send(get_meme())
@@ -173,7 +230,7 @@ class MyClient(discord.Client):
         if content == 'roll':
             await message.channel.send(str(random.randint(1, 100)))
 
-        if content.lower() == 'random':
+        if content == 'random':
             image_path = get_random_image("D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes")
             if image_path:
                 await message.channel.send(file=discord.File(image_path))

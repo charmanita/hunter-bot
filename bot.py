@@ -9,8 +9,8 @@ load_dotenv("bot.env")
 token = os.getenv("BOT_TOKEN")
 
 hunter = 485957450009149451
-CHANNEL_ID = 1520923759987523684  # Rules channel
-ROLE_ID = 1520925875917295696     # verified role
+CHANNEL_ID = 1350541876167573686  # Rules channel
+ROLE_ID = 1282826246488850495     # verified role
 EMOJI = "✅"
 ITEMS_PER_PAGE = 25
 MSG_ID_FILE = "rules_msg_id.txt"
@@ -136,13 +136,16 @@ def get_specific_image(filename, *folder_paths):
 class MyClient(discord.Client):
     def build_rules_embed(self):
         embed = discord.Embed(
-            title="Welcome to charmanita.dev's server! Please read the rules and click the checkmark to gain access to the server!",
+            title="Welcome to hunter's gang! Please read the rules and click the checkmark to gain access to the server!",
             color=0x00ff95
         )
-        embed.set_image(url="attachment://charmanitadevembed.jpg")
-        embed.add_field(name="1. Be respectful", value="Treat everybody with respect. Do not be disrespectful in any way, shape, or form just because you disagree on things or you think it's in a joking manner.", inline=False)
-        embed.add_field(name="2. No Spamming", value="Do not spam in the server, keep it nice and tidy. Do not post links without asking the owner first.", inline=False)
-        embed.add_field(name="3. Follow Discord TOS", value="All users need to strictly follow Discord [Terms of Service](https://www.discord.com/terms).", inline=False)
+        embed.set_image(url="attachment://huntersgangembed.jpg")
+        embed.add_field(name="1. No slurs", value="\u200b", inline=False)
+        embed.add_field(name="2. No Racism", value="\u200b", inline=False)
+        embed.add_field(name="3. No NSFW", value="\u200b", inline=False)
+        embed.add_field(name="4. No spamming", value="\u200b", inline=False)
+        embed.add_field(name="5. Be nice to everybody (no exceptions)", value="\u200b", inline=False)
+        embed.add_field(name="6. Follow Discord TOS", value="All users need to strictly follow Discord [Terms of Service](https://www.discord.com/terms).", inline=False)
         embed.set_footer(text=f"React with {EMOJI} below to accept the rules and enjoy the server!")
         return embed
 
@@ -166,21 +169,32 @@ class MyClient(discord.Client):
         embed = self.build_rules_embed()
 
         if os.path.exists(MSG_ID_FILE):
+            msg_id = None
             with open(MSG_ID_FILE) as f:
-                msg_id = int(f.read().strip())
-            try:
-                existing = await channel.fetch_message(msg_id)
-                await existing.edit(embed=embed)
-                print("Rules embed updated.")
-            except discord.NotFound:
-                print("Previous message not found, resending...")
-                my_file = discord.File("/home/hdr/Desktop/img/charmanitadevembed.jpg", filename="charmanitadevembed.jpg")
+                content = f.read().strip()
+            if content:
+                try:
+                    msg_id = int(content)
+                except ValueError:
+                    print(f"Invalid content in {MSG_ID_FILE}, ignoring.")
+
+            if msg_id is not None:
+                try:
+                    existing = await channel.fetch_message(msg_id)
+                    await existing.edit(embed=embed)
+                    print("Rules embed updated.")
+                except discord.NotFound:
+                    msg_id = None
+
+            if msg_id is None:
+                print("Previous message not found or file empty, resending...")
+                my_file = discord.File("/home/hdr/Desktop/img/huntersgangembed.jpg", filename="huntersgangembed.jpg")
                 message = await channel.send(file=my_file, embed=embed)
                 await message.add_reaction(EMOJI)
                 with open(MSG_ID_FILE, "w") as f:
                     f.write(str(message.id))
         else:
-            my_file = discord.File("/home/hdr/Desktop/img/charmanitadevembed.jpg", filename="charmanitadevembed.jpg")
+            my_file = discord.File("/home/hdr/Desktop/img/huntersgangembed.jpg", filename="huntersgangembed.jpg")
             message = await channel.send(file=my_file, embed=embed)
             await message.add_reaction(EMOJI)
             with open(MSG_ID_FILE, "w") as f:

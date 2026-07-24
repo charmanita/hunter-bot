@@ -1,4 +1,6 @@
 import discord
+from discord import app_commands
+from discord.ext import commands
 import requests
 import json
 import random
@@ -14,6 +16,11 @@ ROLE_ID = 1282826246488850495     # verified role
 EMOJI = "✅"
 ITEMS_PER_PAGE = 25
 MSG_ID_FILE = "rules_msg_id.txt"
+
+MEMES_FOLDERS = ["D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes"]
+PEPE_FOLDERS = ["D:/Hrobe/Downloads/Memes/pepe", "/home/hdr/Desktop/memes/pepe"]
+VIDEO_FOLDERS_1 = ["D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes"]
+VIDEO_FOLDERS_2 = ["D:/Hrobe/Videos", "C:/Users/Hrobe/Videos"]
 
 
 class FileIndexView(discord.ui.View):
@@ -56,6 +63,12 @@ class FileIndexView(discord.ui.View):
 def get_meme():
     response = requests.get('https://meme-api.com/gimme')
     json_data = json.loads(response.text)
+    return json_data['url']
+
+
+def get_cat():
+    response = requests.get('https://cataas.com/cat?json=true')
+    json_data = response.json()
     return json_data['url']
 
 
@@ -133,7 +146,20 @@ def get_specific_image(filename, *folder_paths):
     return None
 
 
-class MyClient(discord.Client):
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True
+intents.guilds = True
+
+
+class HunterBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix="!", intents=intents)
+
+    async def setup_hook(self):
+        # Sync once here so slash commands register on startup.
+        await self.tree.sync()
+
     def build_rules_embed(self):
         embed = discord.Embed(
             title="Welcome to hunter's gang! Please read the rules and click the checkmark to gain access to the server!",
@@ -218,93 +244,127 @@ class MyClient(discord.Client):
             except discord.HTTPException:
                 print("Failed to add role due to a network or Discord API error.")
 
+    # Message triggers
     async def on_message(self, message):
         if message.author == self.user:
             return
 
         content = message.content.strip().lower()
 
-        if content == 'h!help':
-            await message.channel.send(
-                "Commands:\n$meme - Get a random meme\nwhoami - See if I know you...\nroll - Roll a number between 1 and 100\nrandom - Get a random meme from <@485957450009149451>'s computer!\nrandompepe - Get a random Pepe the Frog meme!\nrandvid - Get a random meme video from <@485957450009149451>'s computer!\nrandclip - Get a random clip from <@485957450009149451>'s computer!\n!shutdown - Shutdown the bot (<@485957450009149451> only!)\nls - lists all images indexed with the bot (<@485957450009149451> only.)\nimage - start your message with image and type in any image in the list."
-            )
-
         if content == 'meow':
             await message.channel.send("woof", file=discord.File("/home/hdr/Desktop/memes/puphunter.png"))
-
-        if content == '$meme':
-            await message.channel.send(get_meme())
-
-        if content == 'whoami':
-            await message.channel.send(f"<@{message.author.id}>")
 
         if "clanker" in content:
             await message.channel.send(f'WHAT DID YOU CALL ME?! <@{message.author.id}>')
 
-        if content == 'roll':
-            await message.channel.send(str(random.randint(1, 100)))
 
-        if content == 'random':
-            image_path = get_random_image("D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes")
-            if image_path:
-                await message.channel.send(file=discord.File(image_path))
-            else:
-                await message.channel.send("No images found in the folder.")
-
-        if content == '!shutdown' and message.author.id == hunter:
-            await message.channel.send('Shutting down...')
-            await self.close()
-        elif content == '!shutdown' and message.author.id != hunter:
-            await message.channel.send("You are not sigma owner admin 💯🔥")
-
-        if content == 'randvid':
-            video_path = get_random_video("D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes")
-            if video_path:
-                await message.channel.send(file=discord.File(video_path))
-            else:
-                await message.channel.send("No videos found in this folder.")
-
-        if content == 'randclip':
-            video = get_random_clip("D:/Hrobe/Videos", "C:/Users/Hrobe/Videos")
-            if video:
-                try:
-                    await message.channel.send(file=discord.File(video))
-                except discord.HTTPException as e:
-                    await message.channel.send(f"Failed to send clip: {e}")
-            else:
-                await message.channel.send("No videos found.")
-
-        if content == 'randompepe':
-            randompepe = get_random_pepe("D:/Hrobe/Downloads/Memes/pepe", "/home/hdr/Desktop/memes/pepe")
-            if randompepe:
-                await message.channel.send(file=discord.File(randompepe))
-            else:
-                await message.channel.send("No images found in the folder.")
-
-        if content.startswith('image '):
-            filename = content[6:].strip()
-            image_path = get_specific_image(filename, "D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes")
-            if image_path:
-                await message.channel.send(file=discord.File(image_path))
-            else:
-                await message.channel.send("Image not found.")
-
-        if content == 'ls' and message.author.id == hunter:
-            memes_folder = next((p for p in ["D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes"] if os.path.exists(p)), None)
-            if memes_folder:
-                files = os.listdir(memes_folder)
-                images = [f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))]
-                videos = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm'))]
-                view = FileIndexView(images, videos)
-                await message.channel.send(embed=view.build_embed(), view=view)
-            else:
-                await message.channel.send("Folder not found.")
+bot = HunterBot()
 
 
-intents = discord.Intents.default()
-intents.message_content = True
-intents.members = True
-intents.guilds = True
+@bot.tree.command(name="help", description="List commands!")
+async def help_cmd(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "Commands:\n/meme - Get a random meme\n/whoami - See if I know you...\n/roll - Roll a number between 1 and 100\n"
+        "/random - Get a random meme from <@485957450009149451>'s computer!\n/randompepe - Get a random Pepe the Frog meme!\n"
+        "/randvid - Get a random meme video from <@485957450009149451>'s computer!\n/randclip - Get a random clip from <@485957450009149451>'s computer!\n"
+        "/shutdown - Shutdown the bot (<@485957450009149451> only!)\n/ls - lists all images indexed with the bot (<@485957450009149451> only.)\n"
+        "/image - pick an image from the list by filename."
+    )
 
-client = MyClient(intents=intents)
-client.run(token)
+
+@bot.tree.command(name="meme", description="Grabs a random meme from the Meme API.")
+async def meme(interaction: discord.Interaction):
+    await interaction.response.send_message(get_meme())
+
+
+@bot.tree.command(name="randocat", description="Send a random cat picture using CatAAS!")
+async def randocat(interaction: discord.Interaction):
+    await interaction.response.send_message(get_cat())
+
+
+@bot.tree.command(name="whoami", description="See if I know you...")
+async def whoami(interaction: discord.Interaction):
+    await interaction.response.send_message(f"<@{interaction.user.id}>")
+
+
+@bot.tree.command(name="roll", description="Roll a number between 1 and 100")
+async def roll(interaction: discord.Interaction):
+    await interaction.response.send_message(str(random.randint(1, 100)))
+
+
+@bot.tree.command(name="random", description="Get a random meme from hunter's computer")
+async def random_image_cmd(interaction: discord.Interaction):
+    image_path = get_random_image(*MEMES_FOLDERS)
+    if image_path:
+        await interaction.response.send_message(file=discord.File(image_path))
+    else:
+        await interaction.response.send_message("No images found in the folder.")
+
+
+@bot.tree.command(name="randompepe", description="Get a random Pepe the Frog meme")
+async def randompepe(interaction: discord.Interaction):
+    path = get_random_pepe(*PEPE_FOLDERS)
+    if path:
+        await interaction.response.send_message(file=discord.File(path))
+    else:
+        await interaction.response.send_message("No images found in the folder.")
+
+
+@bot.tree.command(name="randvid", description="Get a random meme video from hunter's computer")
+async def randvid(interaction: discord.Interaction):
+    video_path = get_random_video(*VIDEO_FOLDERS_1)
+    if video_path:
+        await interaction.response.send_message(file=discord.File(video_path))
+    else:
+        await interaction.response.send_message("No videos found in this folder.")
+
+
+@bot.tree.command(name="randclip", description="Get a random clip from hunter's computer")
+async def randclip(interaction: discord.Interaction):
+    video = get_random_clip(*VIDEO_FOLDERS_2)
+    if video:
+        try:
+            await interaction.response.send_message(file=discord.File(video))
+        except discord.HTTPException as e:
+            await interaction.response.send_message(f"Failed to send clip: {e}")
+    else:
+        await interaction.response.send_message("No videos found.")
+
+
+@bot.tree.command(name="image", description="Send a specific image by filename")
+@app_commands.describe(filename="The exact filename to look up")
+async def image_cmd(interaction: discord.Interaction, filename: str):
+    image_path = get_specific_image(filename.strip().lower(), *MEMES_FOLDERS)
+    if image_path:
+        await interaction.response.send_message(file=discord.File(image_path))
+    else:
+        await interaction.response.send_message("Image not found.")
+
+
+@bot.tree.command(name="ls", description="List all indexed images/videos (owner only)")
+async def ls_cmd(interaction: discord.Interaction):
+    if interaction.user.id != hunter:
+        await interaction.response.send_message("You are not sigma owner admin 💯🔥", ephemeral=True)
+        return
+
+    memes_folder = next((p for p in MEMES_FOLDERS if os.path.exists(p)), None)
+    if memes_folder:
+        files = os.listdir(memes_folder)
+        images = [f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))]
+        videos = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm'))]
+        view = FileIndexView(images, videos)
+        await interaction.response.send_message(embed=view.build_embed(), view=view)
+    else:
+        await interaction.response.send_message("Folder not found.")
+
+
+@bot.tree.command(name="shutdown", description="Shut down the bot (owner only)")
+async def shutdown_cmd(interaction: discord.Interaction):
+    if interaction.user.id == hunter:
+        await interaction.response.send_message('Shutting down...')
+        await bot.close()
+    else:
+        await interaction.response.send_message("You are not sigma owner admin 💯🔥", ephemeral=True)
+
+
+bot.run(token)

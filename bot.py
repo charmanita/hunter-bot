@@ -26,7 +26,7 @@ VIDEO_FOLDERS_2 = ["D:/Hrobe/Videos", "C:/Users/Hrobe/Videos"]
 activities = [
     discord.Activity(type=discord.ActivityType.watching, name="veggie burger mukbang"),
     discord.Activity(type=discord.ActivityType.listening, name="fortniteballer100 - h.ntrr"),
-    discord.Activity(type=discord.Streaming, name="absolutely nothing", url="https://twitch.tv/charmanita"),
+    discord.Streaming(name="absolutely nothing", url="https://twitch.tv/charmanita"),
     discord.Game(name="guh buh ugh"),
 ]
 class FileIndexView(discord.ui.View):

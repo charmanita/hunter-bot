@@ -1,10 +1,11 @@
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 import requests
 import json
 import random
 import os
+import itertools
 from dotenv import load_dotenv
 
 load_dotenv("bot.env")
@@ -22,7 +23,12 @@ PEPE_FOLDERS = ["D:/Hrobe/Downloads/Memes/pepe", "/home/hdr/Desktop/memes/pepe"]
 VIDEO_FOLDERS_1 = ["D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes"]
 VIDEO_FOLDERS_2 = ["D:/Hrobe/Videos", "C:/Users/Hrobe/Videos"]
 
-
+activities = [
+    discord.Activity(type=discord.ActivityType.watching, name="veggie burger mukbang"),
+    discord.Activity(type=discord.ActivityType.listening, name="fortniteballer100 - h.ntrr"),
+    discord.Activity(type=discord.Streaming, name="absolutely nothing", url="https://twitch.tv/charmanita"),
+    discord.Activity(type=discord.Game, name="guh buh ugh"),
+]
 class FileIndexView(discord.ui.View):
     def __init__(self, images, videos):
         super().__init__(timeout=60)
@@ -59,18 +65,21 @@ class FileIndexView(discord.ui.View):
             self.page += 1
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
+# Definition of the function to grab memes from the Meme API. 
 
 def get_meme():
     response = requests.get('https://meme-api.com/gimme')
     json_data = json.loads(response.text)
     return json_data['url']
 
+# Definition of function using CatAAS to grab random pictures of cats. 
 
 def get_cat():
     response = requests.get('https://cataas.com/cat?json=true')
     json_data = response.json()
     return json_data['url']
 
+# Function for getting random images from the folder paths from the MEME_FOLDERS
 
 def get_random_image(*folder_paths, max_mb=25):
     images = []
@@ -87,6 +96,7 @@ def get_random_image(*folder_paths, max_mb=25):
         return None
     return random.choice(images)
 
+# Function for getting random pictures from the Pepe Folders
 
 def get_random_pepe(*folder_paths, max_mb=25):
     images = []
@@ -103,7 +113,7 @@ def get_random_pepe(*folder_paths, max_mb=25):
         return None
     return random.choice(images)
 
-
+# Function for getting random videos from the VIDEO_FOLDERS_1
 def get_random_video(*folder_paths, max_mb=25):
     videos = []
     for folder_path in folder_paths:
@@ -119,7 +129,7 @@ def get_random_video(*folder_paths, max_mb=25):
         return None
     return random.choice(videos)
 
-
+# Grabs random clips from my Windows PC to send (doesn't work on Pi due to storage constraints.)
 def get_random_clip(*folder_paths, max_mb=25):
     videos = []
     for folder_path in folder_paths:
@@ -135,7 +145,7 @@ def get_random_clip(*folder_paths, max_mb=25):
         return None
     return random.choice(videos)
 
-
+# Gets specific image that user chooses.
 def get_specific_image(filename, *folder_paths):
     for folder_path in folder_paths:
         if not os.path.exists(folder_path):
@@ -144,14 +154,16 @@ def get_specific_image(filename, *folder_paths):
         if os.path.exists(full_path):
             return full_path
     return None
-
+@tasks.loop(seconds=30)
+async def rotate_status():
+    await bot.change_presence(activity=next(activity_cycle))
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.guilds = True
 
-
+# Bot setup
 class HunterBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
@@ -159,7 +171,7 @@ class HunterBot(commands.Bot):
     async def setup_hook(self):
         # Sync once here so slash commands register on startup.
         await self.tree.sync()
-
+    # Rules embed for server
     def build_rules_embed(self):
         embed = discord.Embed(
             title="Welcome to hunter's gang! Please read the rules and click the checkmark to gain access to the server!",
@@ -174,18 +186,16 @@ class HunterBot(commands.Bot):
         embed.add_field(name="6. Follow Discord TOS", value="All users need to strictly follow Discord [Terms of Service](https://www.discord.com/terms).", inline=False)
         embed.set_footer(text=f"React with {EMOJI} below to accept the rules and enjoy the server!")
         return embed
-
+    # Setup for when bot initially starts up. 
     async def on_ready(self):
         print('Logged on as {0}!'.format(self.user))
-
-        if os.path.exists("/home/hdr/Desktop/memes"):
-            status = "Running on Raspberry Pi"
-        else:
-            status = "Running on Windows"
+        # This is the way the bot checks what system it's on.
+        global activity_cycle
+        activity_cycle = itertools.cycle(activities)
+        rotate_status.start()
 
         target_user = await self.fetch_user(hunter)
-        await target_user.send("I'm online master 😍")
-        await self.change_presence(activity=discord.Game(name=status))
+        await target_user.send("👍🏻")
 
         channel = self.get_channel(CHANNEL_ID)
         if not channel:

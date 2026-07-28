@@ -27,7 +27,7 @@ activities = [
     discord.Activity(type=discord.ActivityType.watching, name="veggie burger mukbang"),
     discord.Activity(type=discord.ActivityType.listening, name="fortniteballer100 - h.ntrr"),
     discord.Activity(type=discord.Streaming, name="absolutely nothing", url="https://twitch.tv/charmanita"),
-    discord.Activity(type=discord.Game, name="guh buh ugh"),
+    discord.Game(name="guh buh ugh"),
 ]
 class FileIndexView(discord.ui.View):
     def __init__(self, images, videos):

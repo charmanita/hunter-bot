@@ -170,7 +170,8 @@ class HunterBot(commands.Bot):
 
     async def setup_hook(self):
         # Sync once here so slash commands register on startup.
-        await self.tree.sync()
+        synced = await self.tree.sync()
+        print(f"Synced {len(synced)} commands: {[c.name for c in synced]}")
     # Rules embed for server
     def build_rules_embed(self):
         embed = discord.Embed(
@@ -366,6 +367,24 @@ async def ls_cmd(interaction: discord.Interaction):
         await interaction.response.send_message(embed=view.build_embed(), view=view)
     else:
         await interaction.response.send_message("Folder not found.")
+@bot.tree.command(name="discordstatus", description="Check Discord's platform status")
+async def discordstatus(interaction: discord.Interaction):
+    resp = requests.get("https://discordstatus.com/api/v2/summary.json")
+    data = resp.json()
+
+    embed = discord.Embed(
+        title="Discord Status",
+        description=data["status"]["description"],
+        color=discord.Color.green() if data["status"]["indicator"] == "none" else discord.Color.orange()
+    )
+
+    for incident in data["incidents"]:
+        embed.add_field(name=incident["name"], value=incident["status"], inline=False)
+    
+    if not data["incidents"]:
+        embed.add_field(name="Incidents", value="None reported", inline=False)
+    
+    await interaction.response.send_message(embed=embed)
 
 
 @bot.tree.command(name="shutdown", description="Shut down the bot (owner only)")

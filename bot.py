@@ -8,7 +8,9 @@ import os
 import itertools
 from dotenv import load_dotenv
 
-load_dotenv("bot.env")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+load_dotenv(os.path.join(BASE_DIR, "bot.env"))
 token = os.getenv("BOT_TOKEN")
 
 hunter = 485957450009149451
@@ -16,7 +18,7 @@ CHANNEL_ID = 1350541876167573686  # Rules channel
 ROLE_ID = 1282826246488850495     # verified role
 EMOJI = "✅"
 ITEMS_PER_PAGE = 25
-MSG_ID_FILE = "rules_msg_id.txt"
+MSG_ID_FILE = os.path.join(BASE_DIR, "rules_msg_id.txt")  # absolute, works under systemd
 
 MEMES_FOLDERS = ["D:/Hrobe/Downloads/Memes", "/home/hdr/Desktop/memes"]
 PEPE_FOLDERS = ["D:/Hrobe/Downloads/Memes/pepe", "/home/hdr/Desktop/memes/pepe"]
@@ -29,6 +31,8 @@ activities = [
     discord.Streaming(name="absolutely nothing", url="https://twitch.tv/charmanita"),
     discord.Game(name="guh buh ugh"),
 ]
+
+
 class FileIndexView(discord.ui.View):
     def __init__(self, images, videos):
         super().__init__(timeout=60)
@@ -65,22 +69,22 @@ class FileIndexView(discord.ui.View):
             self.page += 1
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
-# Definition of the function to grab memes from the Meme API. 
 
+# Grab memes from the Meme API.
 def get_meme():
     response = requests.get('https://meme-api.com/gimme')
     json_data = json.loads(response.text)
     return json_data['url']
 
-# Definition of function using CatAAS to grab random pictures of cats. 
 
+# Grab random cat pictures using CatAAS.
 def get_cat():
     response = requests.get('https://cataas.com/cat?json=true')
     json_data = response.json()
     return json_data['url']
 
-# Function for getting random images from the folder paths from the MEME_FOLDERS
 
+# Random images from the MEMES_FOLDERS
 def get_random_image(*folder_paths, max_mb=25):
     images = []
     for folder_path in folder_paths:
@@ -96,8 +100,8 @@ def get_random_image(*folder_paths, max_mb=25):
         return None
     return random.choice(images)
 
-# Function for getting random pictures from the Pepe Folders
 
+# Random pictures from the Pepe folders
 def get_random_pepe(*folder_paths, max_mb=25):
     images = []
     for folder_path in folder_paths:
@@ -113,7 +117,8 @@ def get_random_pepe(*folder_paths, max_mb=25):
         return None
     return random.choice(images)
 
-# Function for getting random videos from the VIDEO_FOLDERS_1
+
+# Random videos from VIDEO_FOLDERS_1
 def get_random_video(*folder_paths, max_mb=25):
     videos = []
     for folder_path in folder_paths:
@@ -129,7 +134,8 @@ def get_random_video(*folder_paths, max_mb=25):
         return None
     return random.choice(videos)
 
-# Grabs random clips from my Windows PC to send (doesn't work on Pi due to storage constraints.)
+
+# Random clips from my Windows PC (doesn't work on Pi due to storage constraints).
 def get_random_clip(*folder_paths, max_mb=25):
     videos = []
     for folder_path in folder_paths:
@@ -145,7 +151,8 @@ def get_random_clip(*folder_paths, max_mb=25):
         return None
     return random.choice(videos)
 
-# Gets specific image that user chooses.
+
+# Specific image the user chooses.
 def get_specific_image(filename, *folder_paths):
     for folder_path in folder_paths:
         if not os.path.exists(folder_path):
@@ -154,14 +161,18 @@ def get_specific_image(filename, *folder_paths):
         if os.path.exists(full_path):
             return full_path
     return None
+
+
 @tasks.loop(seconds=30)
 async def rotate_status():
     await bot.change_presence(activity=next(activity_cycle))
+
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.guilds = True
+
 
 # Bot setup
 class HunterBot(commands.Bot):
@@ -172,6 +183,7 @@ class HunterBot(commands.Bot):
         # Sync once here so slash commands register on startup.
         synced = await self.tree.sync()
         print(f"Synced {len(synced)} commands: {[c.name for c in synced]}")
+
     # Rules embed for server
     def build_rules_embed(self):
         embed = discord.Embed(
@@ -187,16 +199,30 @@ class HunterBot(commands.Bot):
         embed.add_field(name="6. Follow Discord TOS", value="All users need to strictly follow Discord [Terms of Service](https://www.discord.com/terms).", inline=False)
         embed.set_footer(text=f"React with {EMOJI} below to accept the rules and enjoy the server!")
         return embed
-    # Setup for when bot initially starts up. 
+
+    async def send_rules_message(self, channel, embed):
+        my_file = discord.File("/home/hdr/Desktop/img/huntersgangembed.jpg", filename="huntersgangembed.jpg")
+        message = await channel.send(file=my_file, embed=embed)
+        await message.add_reaction(EMOJI)
+        with open(MSG_ID_FILE, "w") as f:
+            f.write(str(message.id))
+        print("Rules embed sent.")
+
+    # Setup for when bot initially starts up.
     async def on_ready(self):
         print('Logged on as {0}!'.format(self.user))
-        # This is the way the bot checks what system it's on.
-        global activity_cycle
-        activity_cycle = itertools.cycle(activities)
-        rotate_status.start()
 
-        target_user = await self.fetch_user(hunter)
-        await target_user.send("👍🏻")
+        # on_ready can fire again on reconnect, so guard the loop start.
+        global activity_cycle
+        if not rotate_status.is_running():
+            activity_cycle = itertools.cycle(activities)
+            rotate_status.start()
+
+        try:
+            target_user = await self.fetch_user(hunter)
+            await target_user.send("👍🏻")
+        except discord.HTTPException as e:
+            print(f"Couldn't DM owner: {e}")
 
         channel = self.get_channel(CHANNEL_ID)
         if not channel:
@@ -205,8 +231,8 @@ class HunterBot(commands.Bot):
 
         embed = self.build_rules_embed()
 
+        msg_id = None
         if os.path.exists(MSG_ID_FILE):
-            msg_id = None
             with open(MSG_ID_FILE) as f:
                 content = f.read().strip()
             if content:
@@ -215,45 +241,59 @@ class HunterBot(commands.Bot):
                 except ValueError:
                     print(f"Invalid content in {MSG_ID_FILE}, ignoring.")
 
-            if msg_id is not None:
-                try:
-                    existing = await channel.fetch_message(msg_id)
-                    await existing.edit(embed=embed)
-                    print("Rules embed updated.")
-                except discord.NotFound:
-                    msg_id = None
+        if msg_id is not None:
+            try:
+                existing = await channel.fetch_message(msg_id)
+                await existing.edit(embed=embed)
+                print("Rules embed updated.")
+                return
+            except discord.NotFound:
+                print("Previous rules message not found, resending...")
+            except discord.Forbidden:
+                print("Forbidden: bot can't read/edit the rules message (check #rules permissions).")
+                return
 
-            if msg_id is None:
-                print("Previous message not found or file empty, resending...")
-                my_file = discord.File("/home/hdr/Desktop/img/huntersgangembed.jpg", filename="huntersgangembed.jpg")
-                message = await channel.send(file=my_file, embed=embed)
-                await message.add_reaction(EMOJI)
-                with open(MSG_ID_FILE, "w") as f:
-                    f.write(str(message.id))
-        else:
-            my_file = discord.File("/home/hdr/Desktop/img/huntersgangembed.jpg", filename="huntersgangembed.jpg")
-            message = await channel.send(file=my_file, embed=embed)
-            await message.add_reaction(EMOJI)
-            with open(MSG_ID_FILE, "w") as f:
-                f.write(str(message.id))
-            print("Rules embed sent.")
+        try:
+            await self.send_rules_message(channel, embed)
+        except FileNotFoundError as e:
+            print(f"Rules image missing: {e}")
+        except discord.Forbidden:
+            print("Forbidden: bot can't send in #rules.")
 
     async def on_raw_reaction_add(self, payload):
         if payload.user_id == self.user.id:
             return
+        if payload.channel_id != CHANNEL_ID or str(payload.emoji) != EMOJI:
+            return
+
+        # Only react to the rules message
+        if os.path.exists(MSG_ID_FILE):
+            with open(MSG_ID_FILE) as f:
+                saved = f.read().strip()
+            if saved and payload.message_id != int(saved):
+                return
+
         guild = self.get_guild(payload.guild_id)
         if guild is None:
+            print("Guild not found.")
             return
+
         role = guild.get_role(ROLE_ID)
-        member = guild.get_member(payload.user_id)
-        if role and member:
-            try:
-                await member.add_roles(role)
-                print(f"Successfully gave {role.name} role to {member.name}.")
-            except discord.Forbidden:
-                print("Error: Missing 'Manage Roles' permissions, or role is lower in hierarchy.")
-            except discord.HTTPException:
-                print("Failed to add role due to a network or Discord API error.")
+        member = payload.member or guild.get_member(payload.user_id)
+        if role is None:
+            print(f"Role {ROLE_ID} not found.")
+            return
+        if member is None:
+            print(f"Member {payload.user_id} not found.")
+            return
+
+        try:
+            await member.add_roles(role, reason="Accepted rules")
+            print(f"Gave {role.name} to {member.name}.")
+        except discord.Forbidden:
+            print("Forbidden: missing Manage Roles or role is above the bot's top role.")
+        except discord.HTTPException as e:
+            print(f"HTTP error: {e}")
 
     # Message triggers
     async def on_message(self, message):
@@ -337,7 +377,7 @@ async def randclip(interaction: discord.Interaction):
         try:
             await interaction.response.send_message(file=discord.File(video))
         except discord.HTTPException as e:
-            await interaction.response.send_message(f"Failed to send clip: {e}")
+            await interaction.followup.send(f"Failed to send clip: {e}")
     else:
         await interaction.response.send_message("No videos found.")
 
@@ -367,6 +407,8 @@ async def ls_cmd(interaction: discord.Interaction):
         await interaction.response.send_message(embed=view.build_embed(), view=view)
     else:
         await interaction.response.send_message("Folder not found.")
+
+
 @bot.tree.command(name="discordstatus", description="Check Discord's platform status")
 async def discordstatus(interaction: discord.Interaction):
     resp = requests.get("https://discordstatus.com/api/v2/summary.json")
@@ -380,11 +422,75 @@ async def discordstatus(interaction: discord.Interaction):
 
     for incident in data["incidents"]:
         embed.add_field(name=incident["name"], value=incident["status"], inline=False)
-    
+
     if not data["incidents"]:
         embed.add_field(name="Incidents", value="None reported", inline=False)
-    
+
     await interaction.response.send_message(embed=embed)
+
+
+@bot.tree.command(name="syncroles", description="Give verified role to everyone who reacted (owner only)")
+async def syncroles(interaction: discord.Interaction):
+    if interaction.user.id != hunter:
+        await interaction.response.send_message("Owner only.", ephemeral=True)
+        return
+    await interaction.response.defer(ephemeral=True)
+
+    guild = interaction.guild
+    role = guild.get_role(ROLE_ID)
+    if role is None:
+        await interaction.followup.send(f"Role {ROLE_ID} not found.", ephemeral=True)
+        return
+
+    channel = bot.get_channel(CHANNEL_ID)
+    if channel is None:
+        await interaction.followup.send("Rules channel not found (bot can't see it).", ephemeral=True)
+        return
+
+    try:
+        with open(MSG_ID_FILE) as f:
+            msg = await channel.fetch_message(int(f.read().strip()))
+    except FileNotFoundError:
+        await interaction.followup.send(f"{MSG_ID_FILE} not found.", ephemeral=True)
+        return
+    except discord.Forbidden:
+        await interaction.followup.send("Can't read the rules message (View Channel / Read Message History on #rules).", ephemeral=True)
+        return
+    except discord.NotFound:
+        await interaction.followup.send("Message ID in file doesn't match a message in #rules.", ephemeral=True)
+        return
+
+    count = 0
+    for reaction in msg.reactions:
+        if str(reaction.emoji) != EMOJI:
+            continue
+        try:
+            users = [u async for u in reaction.users()]
+        except discord.Forbidden:
+            await interaction.followup.send("Can't list reaction users.", ephemeral=True)
+            return
+
+        for user in users:
+            if user.bot:
+                continue
+            member = guild.get_member(user.id)
+            if member is None:
+                try:
+                    member = await guild.fetch_member(user.id)
+                except discord.HTTPException:
+                    continue  # user left the server
+            if role in member.roles:
+                continue
+            try:
+                await member.add_roles(role, reason="Backfill")
+                count += 1
+            except discord.Forbidden:
+                await interaction.followup.send(
+                    f"Can't give the role to {member.name} (role hierarchy / Manage Roles).", ephemeral=True
+                )
+                return
+
+    await interaction.followup.send(f"Gave the role to {count} members.", ephemeral=True)
 
 
 @bot.tree.command(name="shutdown", description="Shut down the bot (owner only)")

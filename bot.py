@@ -191,12 +191,8 @@ class HunterBot(commands.Bot):
             color=0x00ff95
         )
         embed.set_image(url="attachment://huntersgangembed.jpg")
-        embed.add_field(name="1. No slurs", value="\u200b", inline=False)
-        embed.add_field(name="2. No Racism", value="\u200b", inline=False)
-        embed.add_field(name="3. No NSFW", value="\u200b", inline=False)
-        embed.add_field(name="4. No spamming", value="\u200b", inline=False)
-        embed.add_field(name="5. Be nice to everybody (no exceptions)", value="\u200b", inline=False)
-        embed.add_field(name="6. Follow Discord TOS", value="All users need to strictly follow Discord [Terms of Service](https://www.discord.com/terms).", inline=False)
+        embed.add_field(name="1. Follow Discord TOS", value="All users need to strictly follow Discord [Terms of Service](https://www.discord.com/terms).", inline=False)
+        embed.add_field(name="2. Other than that, I don't care, it's a friends-only server.", value="\u200b", inline=False)
         embed.set_footer(text=f"React with {EMOJI} below to accept the rules and enjoy the server!")
         return embed
 
